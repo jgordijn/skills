@@ -1,6 +1,6 @@
 ---
 name: orchestrating-pi-worktrees
-description: Use when splitting non-overlapping coding work across separate pi instances that each need their own git worktree, tmux window, and observable execution, especially when plain print mode is hard to inspect or recover.
+description: Use when delegating work to another pi session or splitting non-overlapping coding work across separate pi instances. Create one git worktree and tmux window per delegate, and default to RPC-mode launches via the bundled `pi-rpc-prompt-runner.py` helper for observable, restartable runs.
 ---
 
 # Orchestrating Pi Worktrees
@@ -16,9 +16,9 @@ If you want the same supervised delegation pattern **without always creating a n
 ## When to Use
 - A change has multiple independent subtasks
 - Different instances can work on different files without overlap
-- You want tmux windows for parallel execution
-- You need better observability than a plain `pi -p` run gives you
-- A delegated run may need restart/abort/status inspection
+- You want to delegate this to another pi session or spawn a separate pi run
+- You want tmux windows plus a dedicated git worktree per delegate
+- You want observable, restartable delegated runs instead of opaque fire-and-forget output
 
 Do not use this when:
 - Tasks touch the same files heavily
@@ -27,11 +27,11 @@ Do not use this when:
 
 ## Quick Reference
 
-| Need | Mode |
-|------|------|
-| Fast one-shot delegate, minimal supervision | `pi -p` |
-| Passive structured event logging | `pi --mode json` |
-| Active monitoring, status queries, abort/restart control | `pi --mode rpc` |
+| Need | Default |
+|------|---------|
+| Delegated pi session with supervision | `<skill-dir>/scripts/pi-rpc-prompt-runner.py` → `pi --mode rpc` |
+| Passive structured event logging only | `pi --mode json` |
+| Explicit fire-and-forget, minimal supervision | `pi -p` only when the user asks for it or supervision truly does not matter |
 
 | Step | Action |
 |------|--------|
@@ -77,11 +77,24 @@ Run project setup in each worktree and verify the baseline before delegating.
 ### 4. Launch in separate tmux windows
 Use one tmux window per delegate so each run is isolated and easy to inspect.
 
+Default launch path: start delegated pi sessions with the bundled RPC helper, not plain `pi -p`. Resolve the helper path from the skill directory and use the resulting absolute path when launching from a project worktree.
+
 Example:
 ```bash
-tmux new-window -n llm-tools -c /path/to/worktree 'pi -p @delegate.md; exec zsh'
-tmux new-window -n agent-server -c /path/to/worktree 'pi -p @delegate.md; exec zsh'
+tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
+  /path/to/worktree /path/to/delegate-llm-tools.md \
+  --model <provider/model> \
+  --log-file /path/to/logs/llm-tools.jsonl \
+  --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
+
+tmux new-window -n agent-server -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
+  /path/to/worktree /path/to/delegate-agent-server.md \
+  --model <provider/model> \
+  --log-file /path/to/logs/agent-server.jsonl \
+  --stderr-file /path/to/logs/agent-server.stderr.log; exec zsh'
 ```
+
+Use plain `pi -p` only when the user explicitly wants fire-and-forget behavior or when you are certain no monitoring, restart, or abort control will be needed.
 
 The delegate prompt should include:
 - exact task ownership
@@ -90,14 +103,20 @@ The delegate prompt should include:
 - commit requirement
 - request to print commit hash on completion
 
-### 5. Prefer RPC when monitoring matters
-`pi -p` is fine for fire-and-forget work, but it is poor for supervision when:
-- tmux panes are blank or unhelpful
-- you need to know whether the agent is still active
-- you want structured progress signals
-- you may need to abort and restart cleanly
+### 5. Default to RPC via the helper script
+For delegated worktrees, prefer RPC by default. It gives you structured observability and control from the start instead of only after a run becomes confusing.
 
-Use `pi --mode rpc` when you need:
+Use the bundled helper. Resolve `./scripts/pi-rpc-prompt-runner.py` from the skill directory and use that absolute path when executing from another worktree:
+```bash
+<skill-dir>/scripts/pi-rpc-prompt-runner.py /path/to/worktree /path/to/delegate.md \
+  --model <provider/model> \
+  --log-file /path/to/delegate.jsonl \
+  --stderr-file /path/to/delegate.stderr.log
+```
+
+It starts `pi --mode rpc`, sends one prompt from a file, logs raw JSONL events, mirrors compact progress to stdout, and sends `abort` on Ctrl+C. The caller must choose the model explicitly.
+
+RPC is the default here because it gives you:
 - `prompt`
 - `get_state`
 - `get_messages`
@@ -106,16 +125,6 @@ Use `pi --mode rpc` when you need:
 - structured `agent_start`, `message_update`, and tool execution events
 
 Use `pi --mode json` when you only need passive event logs and not interactive control.
-
-Reusable helper:
-```bash
-./scripts/pi-rpc-prompt-runner.py /path/to/worktree /path/to/delegate.md \
-  --model <provider/model> \
-  --log-file /path/to/delegate.jsonl \
-  --stderr-file /path/to/delegate.stderr.log
-```
-
-It starts `pi --mode rpc`, sends one prompt from a file, logs raw JSONL events, mirrors compact progress to stdout, and sends `abort` on Ctrl+C. The caller must choose the model explicitly.
 
 ### 6. Monitor structurally, not just visually
 If tmux output is weak, monitor using:
@@ -143,7 +152,7 @@ When stalled:
 1. inspect worktree status and logs
 2. capture any useful output
 3. abort the delegate
-4. decide whether to restart in `rpc` mode
+4. restart it with the RPC helper again unless the user explicitly wants `pi -p`
 5. restart from a clean worktree state if needed
 
 ### 8. Merge only verified delegate branches
@@ -190,7 +199,7 @@ Requirements:
 - **Delegates editing the same files** → split by ownership before launch
 - **No base commit before fan-out** → branches diverge from moving targets
 - **All delegates editing one checklist file** → keep central tracking in the coordinator
-- **Using `-p` when you need control** → use RPC instead
+- **Using `pi -p` as the default delegate launcher** → use the RPC helper unless the user explicitly wants fire-and-forget
 - **Reading only tmux panes** → inspect git state and structured logs too
 - **Merging unverified branches** → run tests in delegate worktree first
 
