@@ -10,7 +10,7 @@ Use separate pi instances when the work can be split into independent file/task 
 
 Core principle: **commit base → isolate work → monitor structurally → merge verified results**.
 
-If you want the same supervised delegation pattern **without always creating a new worktree**, use `delegating-pi-sessions` instead.
+If you want a simpler one-shot delegation pattern **without always creating a new worktree**, use `delegating-pi-sessions` instead.
 
 
 ## When to Use
