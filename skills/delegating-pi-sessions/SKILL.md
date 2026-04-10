@@ -10,7 +10,7 @@ Use this skill when the goal is **delegate first, choose workspace second**.
 
 Default to a direct one-shot `pi -p` launch, the same style as `ralph-with-pi`, instead of an RPC-managed delegate. Keep the delegate session inside the project under `.tmp/pi-sessions` so the history stays with the worktree.
 
-You do not need a Python helper script for the default case. Use RPC only when you truly need mid-flight control such as `steer`, `follow_up`, or structured event monitoring.
+Use the bundled helper script when you want to inherit launch settings from the current session without embedding JSON parsing inline. Use RPC only when you truly need mid-flight control such as `steer`, `follow_up`, or structured event monitoring.
 
 If isolation is required, create a worktree first. If the delegate is only researching, reviewing, or editing files that the coordinator will not touch, the same worktree can be acceptable.
 
@@ -53,51 +53,21 @@ Run pi directly.
 
 By default, launch the delegate with the same provider/model routing and thinking level as the current session. Only override those inherited defaults when the user explicitly asks for a different provider, model, or thinking level.
 
-If your wrapper exports `PI_SESSION_FILE`, treat it as the source session file and resolve the current session settings once before launching:
+If your wrapper exports `PI_SESSION_FILE`, treat it as the source session file and use the bundled helper to resolve the current session settings once before launching:
 
 ```bash
-eval "$(
-python3 - <<'PY'
-import json
-import os
-import pathlib
-import shlex
-
-path = os.environ.get("PI_SESSION_FILE", "").strip()
-model = ""
-thinking = ""
-
-if path:
-    for raw in pathlib.Path(path).read_text(encoding="utf-8").splitlines():
-        if not raw.strip():
-            continue
-        entry = json.loads(raw)
-        if entry.get("type") == "model_change":
-            provider = (entry.get("provider") or "").strip()
-            model_id = (entry.get("modelId") or "").strip()
-            if provider and model_id:
-                model = f"{provider}/{model_id}"
-            elif model_id:
-                model = model_id
-        elif entry.get("type") == "message":
-            message = entry.get("message") or {}
-            if message.get("role") == "assistant":
-                provider = (entry.get("provider") or "").strip()
-                model_id = (entry.get("model") or "").strip()
-                if provider and model_id:
-                    model = f"{provider}/{model_id}"
-                elif model_id:
-                    model = model_id
-        elif entry.get("type") == "thinking_level_change":
-            level = (entry.get("thinkingLevel") or "").strip()
-            if level:
-                thinking = level
-
-print(f"delegate_model={shlex.quote(model)}")
-print(f"delegate_thinking={shlex.quote(thinking)}")
-PY
-)"
+helper=<skill-dir>/scripts/pi_delegate_inherit_session.py
+eval "$($helper)"
 ```
+
+You can also point the helper at an explicit source session file:
+
+```bash
+helper=<skill-dir>/scripts/pi_delegate_inherit_session.py
+eval "$($helper --session-file /path/to/current-session.jsonl)"
+```
+
+The helper prints shell assignments for `delegate_model` and `delegate_thinking`.
 
 If `PI_SESSION_FILE` is not available, copy the current session's provider/model routing and current thinking level into the launch command manually.
 
@@ -193,6 +163,6 @@ This gives you a lightweight delegated-session workflow in pi:
 - simple launch
 - project-local sessions in `.tmp/pi-sessions`
 - inheritance of current provider/model routing and thinking level by default
-- no Python helper script
+- reusable helper script instead of inline parsing
 - easy tmux use
 - works with the same worktree or a separate one
