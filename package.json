@@ -1,0 +1,15 @@
+{
+  "name": "@jgordijn/personal-pi-skills",
+  "private": true,
+  "scripts": {
+    "test": "python3 -m unittest discover -s tests -v && node --test tests/current-pi-session-settings-extension.test.mjs"
+  },
+  "pi": {
+    "skills": [
+      "./skills"
+    ],
+    "extensions": [
+      "./extensions"
+    ]
+  }
+}

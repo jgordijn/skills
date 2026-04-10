@@ -18,17 +18,21 @@ class DelegatingPiSessionsSkillTests(unittest.TestCase):
         self.assertIn("Do not use `--no-session`", content)
         self.assertNotIn("/path/to/workdir/.tmp/pi-sessions", content)
 
-    def test_skill_references_reusable_inheritance_script_instead_of_inline_python(self) -> None:
+    def test_skill_uses_bundled_extension_to_detect_current_runtime_defaults(self) -> None:
         content = SKILL_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("same provider/model routing and thinking level as the current session", content)
-        self.assertIn("## Bundled scripts", content)
-        self.assertIn("relative to this `SKILL.md` file / skill root", content)
+        self.assertIn("get_current_pi_session_settings", content)
+        self.assertIn("../extensions/current-pi-session-settings.mjs", content)
+        self.assertIn("call `get_current_pi_session_settings`", content)
+        self.assertIn("active runtime", content)
+        self.assertIn("unless the user explicitly asks for a different provider, model, or thinking level", content)
+
+    def test_skill_keeps_saved_session_helper_only_as_a_fallback(self) -> None:
+        content = SKILL_PATH.read_text(encoding="utf-8")
+
         self.assertIn("scripts/pi_delegate_inherit_session.py", content)
-        self.assertIn("PI_SESSION_FILE", content)
-        self.assertIn("source session file", content)
-        self.assertIn("--thinking", content)
-        self.assertIn("Only override", content)
+        self.assertIn("saved session file", content)
+        self.assertIn("fallback", content)
         self.assertNotIn("python3 - <<'PY'", content)
         self.assertNotIn("<skill-dir>/scripts/pi_delegate_inherit_session.py", content)
 

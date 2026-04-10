@@ -12,7 +12,6 @@ Core principle: **commit base → isolate work → monitor structurally → merg
 
 If you want a simpler one-shot delegation pattern **without always creating a new worktree**, use `delegating-pi-sessions` instead.
 
-
 ## When to Use
 - A change has multiple independent subtasks
 - Different instances can work on different files without overlap
@@ -31,17 +30,25 @@ Do not use this when:
 |------|---------|
 | Delegated pi session with supervision | `<skill-dir>/scripts/pi-rpc-prompt-runner.py` → `pi --mode rpc` |
 | Passive structured event logging only | `pi --mode json` |
-| Explicit fire-and-forget, minimal supervision | `pi -p` only when the user asks for it or supervision truly does not matter |
+| Explicit fire-and-forget, minimal supervision | plain `pi -p` only when the user asks for it or supervision truly does not matter |
+| Current delegate model selection | `get_current_pi_session_settings` from `../extensions/current-pi-session-settings.mjs` |
 
 | Step | Action |
 |------|--------|
 | 1 | Commit the current base in the coordinator worktree |
 | 2 | Create one worktree per delegate branch from that base commit |
 | 3 | Give each delegate a non-overlapping scope |
-| 4 | Launch each delegate in a new tmux window |
-| 5 | Monitor via git state and, if needed, RPC/json logs |
-| 6 | Verify delegate branch tests before merging back |
-| 7 | Merge branches back into the coordinator worktree |
+| 4 | Call `get_current_pi_session_settings` once and reuse its `model` value |
+| 5 | Launch each delegate in a new tmux window |
+| 6 | Monitor via git state and, if needed, RPC/json logs |
+| 7 | Verify delegate branch tests before merging back |
+| 8 | Merge branches back into the coordinator worktree |
+
+## Bundled resources
+Paths below are relative to this `SKILL.md` file / skill root.
+
+- `../extensions/current-pi-session-settings.mjs` - registers `get_current_pi_session_settings` for reading the current model from the active runtime
+- `scripts/pi-rpc-prompt-runner.py` - launches delegated pi sessions through `pi --mode rpc`
 
 ## Workflow
 
@@ -74,7 +81,12 @@ git worktree add .worktrees/feature-x-agent -b feature-x-agent <base-commit>
 
 Run project setup in each worktree and verify the baseline before delegating.
 
-### 4. Launch in separate tmux windows
+### 4. Resolve the current model from the active runtime
+Before launching delegates, call `get_current_pi_session_settings` from the bundled extension and reuse its `model` value for every delegate in this fan-out, unless the user explicitly asks for another model.
+
+That keeps delegated runs aligned with the coordinator's active runtime without retyping or guessing the current provider/model route.
+
+### 5. Launch in separate tmux windows
 Use one tmux window per delegate so each run is isolated and easy to inspect.
 
 Default launch path: start delegated pi sessions with the bundled RPC helper, not plain `pi -p`. Resolve the helper path from the skill directory and use the resulting absolute path when launching from a project worktree.
@@ -83,13 +95,13 @@ Example:
 ```bash
 tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
   /path/to/worktree /path/to/delegate-llm-tools.md \
-  --model <provider/model> \
+  --model <current-provider/model> \
   --log-file /path/to/logs/llm-tools.jsonl \
   --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
 
 tmux new-window -n agent-server -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
   /path/to/worktree /path/to/delegate-agent-server.md \
-  --model <provider/model> \
+  --model <current-provider/model> \
   --log-file /path/to/logs/agent-server.jsonl \
   --stderr-file /path/to/logs/agent-server.stderr.log; exec zsh'
 ```
@@ -103,18 +115,18 @@ The delegate prompt should include:
 - commit requirement
 - request to print commit hash on completion
 
-### 5. Default to RPC via the helper script
+### 6. Default to RPC via the helper script
 For delegated worktrees, prefer RPC by default. It gives you structured observability and control from the start instead of only after a run becomes confusing.
 
 Use the bundled helper. Resolve `./scripts/pi-rpc-prompt-runner.py` from the skill directory and use that absolute path when executing from another worktree:
 ```bash
 <skill-dir>/scripts/pi-rpc-prompt-runner.py /path/to/worktree /path/to/delegate.md \
-  --model <provider/model> \
+  --model <current-provider/model> \
   --log-file /path/to/delegate.jsonl \
   --stderr-file /path/to/delegate.stderr.log
 ```
 
-It starts `pi --mode rpc`, sends one prompt from a file, logs raw JSONL events, mirrors compact progress to stdout, and sends `abort` on Ctrl+C. The caller must choose the model explicitly.
+It starts `pi --mode rpc`, sends one prompt from a file, logs raw JSONL events, mirrors compact progress to stdout, and sends `abort` on Ctrl+C. The caller must choose the model explicitly, so use the active runtime tool first.
 
 RPC is the default here because it gives you:
 - `prompt`
@@ -126,7 +138,7 @@ RPC is the default here because it gives you:
 
 Use `pi --mode json` when you only need passive event logs and not interactive control.
 
-### 6. Monitor structurally, not just visually
+### 7. Monitor structurally, not just visually
 If tmux output is weak, monitor using:
 - delegate worktree `git status`
 - latest commit on delegate branch
@@ -142,7 +154,7 @@ git -C /path/to/worktree diff --stat
 find /path/to/worktree -type f -mmin -5
 ```
 
-### 7. Handle stalls explicitly
+### 8. Handle stalls explicitly
 A delegate may be alive but not progressing. Signs:
 - long runtime with no new files
 - only dependency churn (`go.mod`, `go.sum`) and no code
@@ -155,7 +167,7 @@ When stalled:
 4. restart it with the RPC helper again unless the user explicitly wants `pi -p`
 5. restart from a clean worktree state if needed
 
-### 8. Merge only verified delegate branches
+### 9. Merge only verified delegate branches
 Before merging back:
 - inspect changed files for scope creep
 - run tests in the delegate worktree
@@ -200,6 +212,7 @@ Requirements:
 - **No base commit before fan-out** → branches diverge from moving targets
 - **All delegates editing one checklist file** → keep central tracking in the coordinator
 - **Using `pi -p` as the default delegate launcher** → use the RPC helper unless the user explicitly wants fire-and-forget
+- **Guessing the delegate model** → call `get_current_pi_session_settings` from the active runtime first
 - **Reading only tmux panes** → inspect git state and structured logs too
 - **Merging unverified branches** → run tests in delegate worktree first
 
@@ -208,4 +221,5 @@ This workflow turns opaque parallel runs into manageable units:
 - isolated code changes
 - predictable merges
 - restartable delegates
+- reusable current-model detection from the active runtime
 - observable progress when plain tmux output is not enough
