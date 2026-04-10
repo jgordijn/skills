@@ -48,6 +48,12 @@ Use these paths from the delegate workdir:
 
 Do not use `--no-session`; that disables session persistence.
 
+## Bundled scripts
+Paths below are relative to this `SKILL.md` file / skill root.
+
+- `scripts/pi_delegate_inherit_session.py` - reads a Pi source session file and prints `delegate_model` and `delegate_thinking` shell assignments for delegate launches
+
+
 ## Launch a Delegate
 Run pi directly.
 
@@ -56,16 +62,20 @@ By default, launch the delegate with the same provider/model routing and thinkin
 If your wrapper exports `PI_SESSION_FILE`, treat it as the source session file and use the bundled helper to resolve the current session settings once before launching:
 
 ```bash
-helper=<skill-dir>/scripts/pi_delegate_inherit_session.py
+helper=scripts/pi_delegate_inherit_session.py
 eval "$($helper)"
 ```
 
 You can also point the helper at an explicit source session file:
 
 ```bash
-helper=<skill-dir>/scripts/pi_delegate_inherit_session.py
+helper=scripts/pi_delegate_inherit_session.py
 eval "$($helper --session-file /path/to/current-session.jsonl)"
 ```
+
+The helper prints shell assignments for `delegate_model` and `delegate_thinking`.
+
+If `PI_SESSION_FILE` is not available, copy the current session's provider/model routing and current thinking level into the launch command manually.
 
 The helper prints shell assignments for `delegate_model` and `delegate_thinking`.
 

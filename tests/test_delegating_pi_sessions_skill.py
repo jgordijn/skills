@@ -22,12 +22,15 @@ class DelegatingPiSessionsSkillTests(unittest.TestCase):
         content = SKILL_PATH.read_text(encoding="utf-8")
 
         self.assertIn("same provider/model routing and thinking level as the current session", content)
+        self.assertIn("## Bundled scripts", content)
+        self.assertIn("relative to this `SKILL.md` file / skill root", content)
         self.assertIn("scripts/pi_delegate_inherit_session.py", content)
         self.assertIn("PI_SESSION_FILE", content)
         self.assertIn("source session file", content)
         self.assertIn("--thinking", content)
         self.assertIn("Only override", content)
         self.assertNotIn("python3 - <<'PY'", content)
+        self.assertNotIn("<skill-dir>/scripts/pi_delegate_inherit_session.py", content)
 
     def test_skill_no_longer_describes_rpc_runtime_control_files(self) -> None:
         content = SKILL_PATH.read_text(encoding="utf-8")
