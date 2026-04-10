@@ -51,7 +51,7 @@ Do not use `--no-session`; that disables session persistence.
 ## Bundled resources
 Paths below are relative to this `SKILL.md` file / skill root.
 
-- `../extensions/current-pi-session-settings.mjs` - registers the `get_current_pi_session_settings` tool for reading the active runtime model and thinking level
+- `../extensions/current-pi-session-settings.js` - registers the `get_current_pi_session_settings` tool for reading the active runtime model and thinking level
 - `scripts/pi_delegate_inherit_session.py` - fallback helper for inheriting settings from a saved session file when the live extension tool is unavailable
 
 ## Launch a Delegate

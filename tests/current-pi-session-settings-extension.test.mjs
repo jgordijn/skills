@@ -9,7 +9,7 @@ import activate, {
   TOOL_DESCRIPTION,
   buildCurrentPiSessionSettings,
   registerCurrentPiSessionSettingsTool,
-} from '../extensions/current-pi-session-settings.mjs';
+} from '../extensions/current-pi-session-settings.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

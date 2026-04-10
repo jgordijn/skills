@@ -19,7 +19,7 @@ class OrchestratingPiWorktreesSkillTests(unittest.TestCase):
         content = SKILL_PATH.read_text(encoding="utf-8")
 
         self.assertIn("get_current_pi_session_settings", content)
-        self.assertIn("../extensions/current-pi-session-settings.mjs", content)
+        self.assertIn("../extensions/current-pi-session-settings.js", content)
         self.assertIn("active runtime", content)
         self.assertIn("unless the user explicitly asks for another model", content)
         self.assertIn("--model <current-provider/model>", content)

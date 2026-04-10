@@ -47,7 +47,7 @@ Do not use this when:
 ## Bundled resources
 Paths below are relative to this `SKILL.md` file / skill root.
 
-- `../extensions/current-pi-session-settings.mjs` - registers `get_current_pi_session_settings` for reading the current model from the active runtime
+- `../extensions/current-pi-session-settings.js` - registers `get_current_pi_session_settings` for reading the current model from the active runtime
 - `scripts/pi-rpc-prompt-runner.py` - launches delegated pi sessions through `pi --mode rpc`
 
 ## Workflow
