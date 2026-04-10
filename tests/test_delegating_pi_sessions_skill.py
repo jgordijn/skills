@@ -18,6 +18,15 @@ class DelegatingPiSessionsSkillTests(unittest.TestCase):
         self.assertIn("Do not use `--no-session`", content)
         self.assertNotIn("/path/to/workdir/.tmp/pi-sessions", content)
 
+    def test_skill_inherits_provider_model_routing_and_thinking_by_default(self) -> None:
+        content = SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("same provider/model routing and thinking level as the current session", content)
+        self.assertIn("PI_SESSION_FILE", content)
+        self.assertIn("source session file", content)
+        self.assertIn("--thinking", content)
+        self.assertIn("Only override", content)
+
     def test_skill_no_longer_describes_rpc_runtime_control_files(self) -> None:
         content = SKILL_PATH.read_text(encoding="utf-8")
 
