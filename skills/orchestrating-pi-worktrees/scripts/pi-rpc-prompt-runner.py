@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run pi in RPC mode with a prompt file and structured logging.
 
-This helper is meant for delegated work launched in tmux. It:
+This helper is meant for delegated work launched in tmux or Supaterm. It:
 - starts `pi --mode rpc`
 - sends one initial prompt loaded from a file
 - writes every RPC event to a JSONL log file

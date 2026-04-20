@@ -86,25 +86,37 @@ Before launching delegates, call `get_current_pi_session_settings` from the bund
 
 That keeps delegated runs aligned with the coordinator's active runtime without retyping or guessing the current provider/model route.
 
-### 5. Launch in separate tmux windows
-Use one tmux window per delegate so each run is isolated and easy to inspect.
+### 5. Launch in separate tmux windows or Supaterm tabs
+Use one visible terminal host per delegate so each run is isolated and easy to inspect.
 
 Default launch path: start delegated pi sessions with the bundled RPC helper, not plain `pi -p`. Resolve the helper path from the skill directory and use the resulting absolute path when launching from a project worktree.
 
+Detect the host in this order: use tmux when you are already inside tmux, otherwise use Supaterm when `SUPATERM_SOCKET_PATH` is set and `sp` is available, and if you are in neither, fallback to tmux.
+
 Example:
 ```bash
-tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
-  /path/to/worktree /path/to/delegate-llm-tools.md \
-  --model <current-provider/model> \
-  --log-file /path/to/logs/llm-tools.jsonl \
-  --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
-
-tmux new-window -n agent-server -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
-  /path/to/worktree /path/to/delegate-agent-server.md \
-  --model <current-provider/model> \
-  --log-file /path/to/logs/agent-server.jsonl \
-  --stderr-file /path/to/logs/agent-server.stderr.log; exec zsh'
+if [ -n "$TMUX" ]; then
+  tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
+    /path/to/worktree /path/to/delegate-llm-tools.md \
+    --model <current-provider/model> \
+    --log-file /path/to/logs/llm-tools.jsonl \
+    --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
+elif [ -n "${SUPATERM_SOCKET_PATH:-}" ] && command -v sp >/dev/null; then
+  sp tab new --focus --cwd /path/to/worktree --script '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
+    /path/to/worktree /path/to/delegate-llm-tools.md \
+    --model <current-provider/model> \
+    --log-file /path/to/logs/llm-tools.jsonl \
+    --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
+else
+  tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
+    /path/to/worktree /path/to/delegate-llm-tools.md \
+    --model <current-provider/model> \
+    --log-file /path/to/logs/llm-tools.jsonl \
+    --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
+fi
 ```
+
+Inside Supaterm, prefer a new tab because it is the closest equivalent to a tmux window for a delegated worktree run. Supaterm also sets ambient targeting variables such as `SUPATERM_SOCKET_PATH`, `SUPATERM_SURFACE_ID`, and `SUPATERM_TAB_ID`, so `sp tab new` can usually target the current space without extra selectors.
 
 Use plain `pi -p` only when the user explicitly wants fire-and-forget behavior or when you are certain no monitoring, restart, or abort control will be needed.
 

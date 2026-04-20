@@ -94,16 +94,36 @@ pi -p --model <provider/model> --thinking <level> \
   "read and perform @/path/to/delegate.md"
 ```
 
-Launch it in tmux when you want a persistent terminal window:
+Launch it in a persistent terminal host when you want the delegate to keep running in its own visible session.
+
+Detect the host in this order: use tmux when you are already inside tmux, otherwise use Supaterm when `SUPATERM_SOCKET_PATH` is set and `sp` is available, and if you are in neither, fallback to tmux.
 
 ```bash
-tmux new-window -n delegate-name -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
-  --model <current-provider/model> \
-  --thinking <current-thinking-level> \
-  --session-dir .tmp/pi-sessions \
-  "read and perform @/path/to/delegate.md" \
-  2>&1 | tee .tmp/delegate-name.log; exec zsh'
+if [ -n "$TMUX" ]; then
+  tmux new-window -n delegate-name -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
+    --model <current-provider/model> \
+    --thinking <current-thinking-level> \
+    --session-dir .tmp/pi-sessions \
+    "read and perform @/path/to/delegate.md" \
+    2>&1 | tee .tmp/delegate-name.log; exec zsh'
+elif [ -n "${SUPATERM_SOCKET_PATH:-}" ] && command -v sp >/dev/null; then
+  sp tab new --focus --cwd /path/to/workdir --script 'mkdir -p .tmp/pi-sessions && pi -p \
+    --model <current-provider/model> \
+    --thinking <current-thinking-level> \
+    --session-dir .tmp/pi-sessions \
+    "read and perform @/path/to/delegate.md" \
+    2>&1 | tee .tmp/delegate-name.log; exec zsh'
+else
+  tmux new-window -n delegate-name -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
+    --model <current-provider/model> \
+    --thinking <current-thinking-level> \
+    --session-dir .tmp/pi-sessions \
+    "read and perform @/path/to/delegate.md" \
+    2>&1 | tee .tmp/delegate-name.log; exec zsh'
+fi
 ```
+
+Inside Supaterm, prefer a new tab because it maps most closely to the separate-window workflow used in tmux. Supaterm also sets ambient targeting variables such as `SUPATERM_SOCKET_PATH`, `SUPATERM_SURFACE_ID`, and `SUPATERM_TAB_ID`, so `sp tab new` can usually target the current space without extra selectors.
 
 Substitute `<current-provider/model>` and `<current-thinking-level>` with the inherited values you got by calling `get_current_pi_session_settings`.
 

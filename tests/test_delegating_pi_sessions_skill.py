@@ -45,6 +45,15 @@ class DelegatingPiSessionsSkillTests(unittest.TestCase):
         self.assertNotIn("status.json", content)
         self.assertNotIn("final-report.txt", content)
 
+    def test_skill_documents_supaterm_or_tmux_detection_with_tmux_fallback(self) -> None:
+        content = SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("if [ -n \"$TMUX\" ]; then", content)
+        self.assertIn("elif [ -n \"${SUPATERM_SOCKET_PATH:-}\" ] && command -v sp >/dev/null; then", content)
+        self.assertIn("fallback to tmux", content)
+        self.assertIn("sp tab new --focus --cwd /path/to/workdir --script", content)
+
+
 
 if __name__ == "__main__":
     unittest.main()
