@@ -112,7 +112,7 @@ elif [ -n "${SUPATERM_SOCKET_PATH:-}" ] && command -v sp >/dev/null; then
     --thinking <current-thinking-level> \
     --session-dir .tmp/pi-sessions \
     "read and perform @/path/to/delegate.md" \
-    2>&1 | tee .tmp/delegate-name.log'
+    2>&1 | tee .tmp/delegate-name.log; sp tab close'
 else
   tmux new-window -n delegate-name -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
     --model <current-provider/model> \

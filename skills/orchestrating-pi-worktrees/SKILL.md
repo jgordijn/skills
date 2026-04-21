@@ -106,7 +106,7 @@ elif [ -n "${SUPATERM_SOCKET_PATH:-}" ] && command -v sp >/dev/null; then
     /path/to/worktree /path/to/delegate-llm-tools.md \
     --model <current-provider/model> \
     --log-file /path/to/logs/llm-tools.jsonl \
-    --stderr-file /path/to/logs/llm-tools.stderr.log'
+    --stderr-file /path/to/logs/llm-tools.stderr.log; sp tab close'
 else
   tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
     /path/to/worktree /path/to/delegate-llm-tools.md \
