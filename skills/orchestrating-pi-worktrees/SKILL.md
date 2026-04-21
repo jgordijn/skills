@@ -100,19 +100,19 @@ if [ -n "$TMUX" ]; then
     /path/to/worktree /path/to/delegate-llm-tools.md \
     --model <current-provider/model> \
     --log-file /path/to/logs/llm-tools.jsonl \
-    --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
+    --stderr-file /path/to/logs/llm-tools.stderr.log'
 elif [ -n "${SUPATERM_SOCKET_PATH:-}" ] && command -v sp >/dev/null; then
   sp tab new --focus --cwd /path/to/worktree --script '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
     /path/to/worktree /path/to/delegate-llm-tools.md \
     --model <current-provider/model> \
     --log-file /path/to/logs/llm-tools.jsonl \
-    --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
+    --stderr-file /path/to/logs/llm-tools.stderr.log'
 else
   tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
     /path/to/worktree /path/to/delegate-llm-tools.md \
     --model <current-provider/model> \
     --log-file /path/to/logs/llm-tools.jsonl \
-    --stderr-file /path/to/logs/llm-tools.stderr.log; exec zsh'
+    --stderr-file /path/to/logs/llm-tools.stderr.log'
 fi
 ```
 

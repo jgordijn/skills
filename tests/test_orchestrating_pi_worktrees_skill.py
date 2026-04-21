@@ -32,6 +32,11 @@ class OrchestratingPiWorktreesSkillTests(unittest.TestCase):
         self.assertIn("fallback to tmux", content)
         self.assertIn("sp tab new --focus --cwd /path/to/worktree --script", content)
 
+    def test_skill_does_not_keep_shell_open_after_delegate_finishes(self) -> None:
+        content = SKILL_PATH.read_text(encoding="utf-8")
+
+        self.assertNotIn("; exec zsh", content)
+
 
 
 if __name__ == "__main__":

@@ -105,21 +105,21 @@ if [ -n "$TMUX" ]; then
     --thinking <current-thinking-level> \
     --session-dir .tmp/pi-sessions \
     "read and perform @/path/to/delegate.md" \
-    2>&1 | tee .tmp/delegate-name.log; exec zsh'
+    2>&1 | tee .tmp/delegate-name.log'
 elif [ -n "${SUPATERM_SOCKET_PATH:-}" ] && command -v sp >/dev/null; then
   sp tab new --focus --cwd /path/to/workdir --script 'mkdir -p .tmp/pi-sessions && pi -p \
     --model <current-provider/model> \
     --thinking <current-thinking-level> \
     --session-dir .tmp/pi-sessions \
     "read and perform @/path/to/delegate.md" \
-    2>&1 | tee .tmp/delegate-name.log; exec zsh'
+    2>&1 | tee .tmp/delegate-name.log'
 else
   tmux new-window -n delegate-name -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
     --model <current-provider/model> \
     --thinking <current-thinking-level> \
     --session-dir .tmp/pi-sessions \
     "read and perform @/path/to/delegate.md" \
-    2>&1 | tee .tmp/delegate-name.log; exec zsh'
+    2>&1 | tee .tmp/delegate-name.log'
 fi
 ```
 
