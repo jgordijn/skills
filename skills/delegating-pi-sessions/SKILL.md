@@ -1,6 +1,6 @@
 ---
 name: delegating-pi-sessions
-description: Use when delegating work to another pi session, with or without a separate git worktree, when a simple one-shot `pi -p` run is enough.
+description: Use when delegating work to another pi session, with or without a separate git worktree, when a simple one-shot `pi -p` run is enough and the delegate should run in its own visible Supaterm tab or tmux window.
 ---
 
 # Delegating Pi Sessions
@@ -8,7 +8,7 @@ description: Use when delegating work to another pi session, with or without a s
 ## Overview
 Use this skill when the goal is **delegate first, choose workspace second**.
 
-Default to a direct one-shot `pi -p` launch, the same style as `ralph-with-pi`, instead of an RPC-managed delegate. Keep the delegate session inside the project under `.tmp/pi-sessions` so the history stays with the worktree.
+Default to launching the delegate in a visible subtask tab/window, not inline in the coordinator shell. Keep the delegate session inside the project under `.tmp/pi-sessions` so the history stays with the worktree, and keep using plain one-shot `pi -p` instead of an RPC-managed delegate unless you truly need live control.
 
 Use the bundled extension tool to detect the current provider/model route from the active runtime instead of scraping session JSON inline. Keep the saved-session helper only as a fallback when you must inherit settings from a saved session file outside the live runtime. Use RPC only when you truly need mid-flight control such as `steer`, `follow_up`, or structured event monitoring.
 
@@ -18,6 +18,7 @@ If isolation is required, create a worktree first. If the delegate is only resea
 - You want another pi session to work in parallel
 - A one-shot delegate is enough
 - You want the delegate session written under the project `.tmp`
+- You want the delegate running in its own visible subtask tab/window
 - You do **not** always want a new worktree just to delegate work
 
 Do not use this when:
@@ -55,7 +56,7 @@ Paths below are relative to this `SKILL.md` file / skill root.
 - `scripts/pi_delegate_inherit_session.py` - fallback helper for inheriting settings from a saved session file when the live extension tool is unavailable
 
 ## Launch a Delegate
-Run pi directly.
+Run `pi -p` inside a dedicated visible subtask tab/window.
 
 By default, call `get_current_pi_session_settings` and use its returned `model` and `thinking` values for the delegate launch. That keeps the delegate on the same provider/model routing and thinking level as the active runtime, unless the user explicitly asks for a different provider, model, or thinking level.
 
@@ -65,7 +66,9 @@ Expected tool result details:
 - `model` (`provider/model`)
 - `thinking`
 
-Then launch with those inherited defaults:
+Use the title template `[PI-SUB] <description>` for every delegate host so it is obviously a subtask. For a code-review delegate, use `[PI-SUB] Review code`.
+
+The command payload that runs inside the subtask host is:
 
 ```bash
 mkdir -p .tmp/pi-sessions
@@ -76,7 +79,7 @@ pi -p \
   "read and perform @/path/to/delegate.md"
 ```
 
-If you want the exact `ralph-with-pi` style launch without the loop, this is the equivalent `bun x` form:
+If you want the exact `ralph-with-pi` style payload without the loop, this is the equivalent `bun x` form:
 
 ```bash
 bun x @mariozechner/pi-coding-agent@latest -p \
@@ -94,32 +97,32 @@ pi -p --model <provider/model> --thinking <level> \
   "read and perform @/path/to/delegate.md"
 ```
 
-Launch it in a persistent terminal host when you want the delegate to keep running in its own visible session.
+Always launch that payload in a visible subtask host that auto-closes after the delegate finishes.
 
 Detect the host in this order: use tmux when you are already inside tmux, otherwise use Supaterm when `SUPATERM_SOCKET_PATH` is set and `sp` is available, and if you are in neither, fallback to tmux.
 
 ```bash
 if [ -n "$TMUX" ]; then
-  tmux new-window -n delegate-name -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
+  tmux new-window -n "[PI-SUB] Review code" -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
     --model <current-provider/model> \
     --thinking <current-thinking-level> \
     --session-dir .tmp/pi-sessions \
     "read and perform @/path/to/delegate.md" \
-    2>&1 | tee .tmp/delegate-name.log'
+    2>&1 | tee .tmp/delegate-name.log; tmux kill-window'
 elif [ -n "${SUPATERM_SOCKET_PATH:-}" ] && command -v sp >/dev/null; then
-  sp tab new --focus --cwd /path/to/workdir --script 'mkdir -p .tmp/pi-sessions && pi -p \
+  sp tab new --focus --cwd /path/to/workdir --script 'sp tab rename "[PI-SUB] Review code"; mkdir -p .tmp/pi-sessions && pi -p \
     --model <current-provider/model> \
     --thinking <current-thinking-level> \
     --session-dir .tmp/pi-sessions \
     "read and perform @/path/to/delegate.md" \
     2>&1 | tee .tmp/delegate-name.log; sp tab close'
 else
-  tmux new-window -n delegate-name -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
+  tmux new-window -n "[PI-SUB] Review code" -c /path/to/workdir 'mkdir -p .tmp/pi-sessions && pi -p \
     --model <current-provider/model> \
     --thinking <current-thinking-level> \
     --session-dir .tmp/pi-sessions \
     "read and perform @/path/to/delegate.md" \
-    2>&1 | tee .tmp/delegate-name.log'
+    2>&1 | tee .tmp/delegate-name.log; tmux kill-window'
 fi
 ```
 
@@ -171,7 +174,7 @@ If you need structured live control, use an RPC-based workflow instead.
 2. Write a focused delegate prompt
 3. Create `.tmp/pi-sessions`
 4. Call `get_current_pi_session_settings` to resolve the inherited provider/model routing and thinking level from the active runtime
-5. Launch the delegate with `pi -p --session-dir`
+5. Launch the delegate in a visible Supaterm tab or tmux window, and run `pi -p --session-dir` inside it
 6. Monitor the log file and repo state
 7. Inspect the resulting session file and changed files when the run finishes
 8. Verify the result before continuing
@@ -182,15 +185,17 @@ If you need structured live control, use an RPC-based workflow instead.
 - **Using `--no-session`** → no delegate session gets written under `.tmp`
 - **Forgetting to call `get_current_pi_session_settings`** → inherit the current runtime defaults unless the user asked otherwise
 - **Reaching for the saved-session fallback too early** → prefer the active runtime tool first
-- **Trying to steer the delegate mid-run** → stop and relaunch instead
+- **Launching inline in the coordinator tab** → always use a visible subtask host with the `[PI-SUB] <description>` naming pattern
+- **Trying to steer the delegate mid-run** → stop it and relaunch instead
 - **Skipping log capture** → pipe output to `.tmp/delegate-name.log`
 
 ## Real-World Impact
 This gives you a lightweight delegated-session workflow in pi:
 - simple launch
+- visible subtask hosts for each delegate
 - project-local sessions in `.tmp/pi-sessions`
 - inheritance of current provider/model routing and thinking level by default
 - reusable extension tool for the active runtime
 - saved-session fallback when you truly need it
-- easy tmux use
+- easy tmux and Supaterm use
 - works with the same worktree or a separate one

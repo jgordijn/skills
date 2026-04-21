@@ -1,6 +1,6 @@
 ---
 name: orchestrating-pi-worktrees
-description: Use when delegating work to another pi session or splitting non-overlapping coding work across separate pi instances. Create one git worktree and tmux window per delegate, and default to RPC-mode launches via the bundled `pi-rpc-prompt-runner.py` helper for observable, restartable runs.
+description: Use when delegating work to another pi session or splitting non-overlapping coding work across separate pi instances. Create one git worktree plus one visible Supaterm tab or tmux window per delegate, and default to RPC-mode launches via the bundled `pi-rpc-prompt-runner.py` helper for observable, restartable runs.
 ---
 
 # Orchestrating Pi Worktrees
@@ -16,7 +16,7 @@ If you want a simpler one-shot delegation pattern **without always creating a ne
 - A change has multiple independent subtasks
 - Different instances can work on different files without overlap
 - You want to delegate this to another pi session or spawn a separate pi run
-- You want tmux windows plus a dedicated git worktree per delegate
+- You want one visible Supaterm tab or tmux window plus a dedicated git worktree per delegate
 - You want observable, restartable delegated runs instead of opaque fire-and-forget output
 
 Do not use this when:
@@ -31,7 +31,8 @@ Do not use this when:
 | Delegated pi session with supervision | `<skill-dir>/scripts/pi-rpc-prompt-runner.py` → `pi --mode rpc` |
 | Passive structured event logging only | `pi --mode json` |
 | Explicit fire-and-forget, minimal supervision | plain `pi -p` only when the user asks for it or supervision truly does not matter |
-| Current delegate model selection | `get_current_pi_session_settings` from `../extensions/current-pi-session-settings.mjs` |
+| Current delegate model selection | `get_current_pi_session_settings` from `../extensions/current-pi-session-settings.js` |
+| Delegate host title template | `[PI-SUB] <description>` |
 
 | Step | Action |
 |------|--------|
@@ -39,7 +40,7 @@ Do not use this when:
 | 2 | Create one worktree per delegate branch from that base commit |
 | 3 | Give each delegate a non-overlapping scope |
 | 4 | Call `get_current_pi_session_settings` once and reuse its `model` value |
-| 5 | Launch each delegate in a new tmux window |
+| 5 | Launch each delegate in a new visible Supaterm tab or tmux window |
 | 6 | Monitor via git state and, if needed, RPC/json logs |
 | 7 | Verify delegate branch tests before merging back |
 | 8 | Merge branches back into the coordinator worktree |
@@ -91,28 +92,30 @@ Use one visible terminal host per delegate so each run is isolated and easy to i
 
 Default launch path: start delegated pi sessions with the bundled RPC helper, not plain `pi -p`. Resolve the helper path from the skill directory and use the resulting absolute path when launching from a project worktree.
 
+Use the title template `[PI-SUB] <description>` for every delegate host so it is obviously a subtask. For a code-review delegate, use `[PI-SUB] Review code`.
+
 Detect the host in this order: use tmux when you are already inside tmux, otherwise use Supaterm when `SUPATERM_SOCKET_PATH` is set and `sp` is available, and if you are in neither, fallback to tmux.
 
 Example:
 ```bash
 if [ -n "$TMUX" ]; then
-  tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
+  tmux new-window -n "[PI-SUB] Review code" -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
     /path/to/worktree /path/to/delegate-llm-tools.md \
     --model <current-provider/model> \
     --log-file /path/to/logs/llm-tools.jsonl \
-    --stderr-file /path/to/logs/llm-tools.stderr.log'
+    --stderr-file /path/to/logs/llm-tools.stderr.log; tmux kill-window'
 elif [ -n "${SUPATERM_SOCKET_PATH:-}" ] && command -v sp >/dev/null; then
-  sp tab new --focus --cwd /path/to/worktree --script '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
+  sp tab new --focus --cwd /path/to/worktree --script 'sp tab rename "[PI-SUB] Review code"; <skill-dir>/scripts/pi-rpc-prompt-runner.py \
     /path/to/worktree /path/to/delegate-llm-tools.md \
     --model <current-provider/model> \
     --log-file /path/to/logs/llm-tools.jsonl \
     --stderr-file /path/to/logs/llm-tools.stderr.log; sp tab close'
 else
-  tmux new-window -n llm-tools -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
+  tmux new-window -n "[PI-SUB] Review code" -c /path/to/worktree '<skill-dir>/scripts/pi-rpc-prompt-runner.py \
     /path/to/worktree /path/to/delegate-llm-tools.md \
     --model <current-provider/model> \
     --log-file /path/to/logs/llm-tools.jsonl \
-    --stderr-file /path/to/logs/llm-tools.stderr.log'
+    --stderr-file /path/to/logs/llm-tools.stderr.log; tmux kill-window'
 fi
 ```
 
@@ -225,12 +228,14 @@ Requirements:
 - **All delegates editing one checklist file** → keep central tracking in the coordinator
 - **Using `pi -p` as the default delegate launcher** → use the RPC helper unless the user explicitly wants fire-and-forget
 - **Guessing the delegate model** → call `get_current_pi_session_settings` from the active runtime first
+- **Launching delegates without a visible subtask host title** → use the `[PI-SUB] <description>` naming pattern
 - **Reading only tmux panes** → inspect git state and structured logs too
 - **Merging unverified branches** → run tests in delegate worktree first
 
 ## Real-World Impact
 This workflow turns opaque parallel runs into manageable units:
 - isolated code changes
+- visible subtask hosts per delegate
 - predictable merges
 - restartable delegates
 - reusable current-model detection from the active runtime
