@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -45,6 +47,27 @@ class DelegatingPiSessionsSkillTests(unittest.TestCase):
         self.assertIn("github-copilot/gpt-5.6-luna", content)
         self.assertIn("thinking `max`", content)
 
+    def test_executable_case_block_pairs_each_role_with_its_route(self) -> None:
+        content = SKILL_PATH.read_text(encoding="utf-8")
+        route_block = next(
+            block
+            for block in re.findall(r"```bash\n(.*?)```", content, re.DOTALL)
+            if 'case "$delegate_role" in' in block
+        )
+
+        expected_routes = {
+            "standard": ("github-copilot/gpt-5.6-sol", "medium"),
+            "critical": ("github-copilot/kimi-k3", "high"),
+            "easy": ("github-copilot/gpt-5.6-luna", "max"),
+        }
+        for role, (model, thinking) in expected_routes.items():
+            with self.subTest(role=role):
+                self.assertRegex(
+                    route_block,
+                    rf"{role}\)\s+default_model=\"{re.escape(model)}\""
+                    rf"\s+default_thinking=\"{thinking}\"",
+                )
+
     def test_explicit_user_route_always_takes_precedence(self) -> None:
         content = SKILL_PATH.read_text(encoding="utf-8")
 
@@ -84,6 +107,29 @@ class DelegatingPiSessionsSkillTests(unittest.TestCase):
         self.assertNotIn("tmux ", normalized_commands)
         self.assertNotIn("sp ", normalized_commands)
         self.assertNotIn("supaterm ", normalized_commands)
+
+    def test_unknown_role_aborts_top_level_shell_before_launch(self) -> None:
+        content = SKILL_PATH.read_text(encoding="utf-8")
+        route_block = next(
+            block
+            for block in re.findall(r"```bash\n(.*?)```", content, re.DOTALL)
+            if 'case "$delegate_role" in' in block
+        )
+        route_block = route_block.replace(
+            'delegate_role="standard"', 'delegate_role="unknown"', 1
+        )
+
+        result = subprocess.run(
+            ["bash", "-c", f'{route_block}\nprintf "SIMULATED_LAUNCH\\n"'],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertNotIn("SIMULATED_LAUNCH", result.stdout)
+        self.assertIn("exit 2", route_block)
+        self.assertNotIn("return 2", route_block)
 
     def test_route_selection_initializes_nonempty_launch_variables(self) -> None:
         content = SKILL_PATH.read_text(encoding="utf-8")

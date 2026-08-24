@@ -70,7 +70,7 @@ case "$delegate_role" in
     ;;
   *)
     echo "unknown delegate role: $delegate_role" >&2
-    return 2
+    exit 2
     ;;
 esac
 
