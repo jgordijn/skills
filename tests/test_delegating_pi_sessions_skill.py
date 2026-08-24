@@ -53,16 +53,49 @@ class DelegatingPiSessionsSkillTests(unittest.TestCase):
         self.assertIn("never silently replace", content.lower())
         self.assertIn("report the problem and ask before substituting", content.lower())
 
-    def test_launch_passes_selected_model_and_thinking_explicitly(self) -> None:
+    def test_launch_uses_interactive_herdr_and_pi_argument_passthrough(self) -> None:
+        content = SKILL_PATH.read_text(encoding="utf-8")
+        command_lines: list[str] = []
+        in_bash_block = False
+        for line in content.splitlines():
+            if line == "```bash":
+                in_bash_block = True
+            elif line == "```":
+                in_bash_block = False
+            elif in_bash_block and line.strip() and not line.lstrip().startswith("#"):
+                command_lines.append(line.strip())
+
+        expected_launch = (
+            'herdr agent start "$agent_name" --kind pi --pane "$root_pane_id" -- '
+            '--model "$model" --thinking "$thinking"'
+        )
+        self.assertEqual(
+            [line for line in command_lines if line.startswith("herdr agent start")],
+            [expected_launch],
+        )
+        self.assertNotIn(
+            'herdr agent start "$agent_name" --kind pi --pane "$root_pane_id" '
+            '--model "$model" --thinking "$thinking"',
+            command_lines,
+        )
+        normalized_commands = "\n".join(command_lines).lower()
+        self.assertNotIn("pi -p", normalized_commands)
+        self.assertNotIn("--mode rpc", normalized_commands)
+        self.assertNotIn("tmux ", normalized_commands)
+        self.assertNotIn("sp ", normalized_commands)
+        self.assertNotIn("supaterm ", normalized_commands)
+
+    def test_route_selection_initializes_nonempty_launch_variables(self) -> None:
         content = SKILL_PATH.read_text(encoding="utf-8")
 
-        launch = next(
-            line for line in content.splitlines() if line.startswith("herdr agent start")
-        )
-        self.assertIn("--kind pi", launch)
-        self.assertIn("--pane <root-pane-id>", launch)
-        self.assertIn('--model "$model"', launch)
-        self.assertIn('--thinking "$thinking"', launch)
+        self.assertIn('agent_name="<unique-name>"', content)
+        self.assertIn('root_pane_id="<root-pane-id-from-tab-create-json>"', content)
+        self.assertIn('model="${requested_model:-$default_model}"', content)
+        self.assertIn('thinking="${requested_thinking:-$default_thinking}"', content)
+        self.assertIn(': "${agent_name:?agent_name must be set}"', content)
+        self.assertIn(': "${root_pane_id:?root_pane_id must be set}"', content)
+        self.assertIn(': "${model:?model must be set}"', content)
+        self.assertIn(': "${thinking:?thinking must be set}"', content)
 
     def test_skill_supports_same_workspace_or_isolated_worktree(self) -> None:
         content = SKILL_PATH.read_text(encoding="utf-8")

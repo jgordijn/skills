@@ -48,7 +48,39 @@ Unless the user specifies a route, select it by role:
 
 An explicit user-specified provider, model, or thinking always overrides the role default. Preserve every explicitly specified route component and never silently replace it. If the requested route is unavailable, report the problem and ask before substituting.
 
-Set `model` and `thinking` from that decision before launching. Even when using defaults, pass both explicitly.
+Initialize the route explicitly. Set `delegate_role` to `standard`, `critical`, or `easy`; set either requested value when the user supplied that component. Resolving each final value against a nonempty default ensures the launch never receives an empty model or thinking value.
+
+```bash
+delegate_role="standard" # change to critical or easy for that role
+requested_model=""       # set to an explicit user-requested provider/model
+requested_thinking=""    # set to an explicit user-requested thinking level
+
+case "$delegate_role" in
+  standard)
+    default_model="github-copilot/gpt-5.6-sol"
+    default_thinking="medium"
+    ;;
+  critical)
+    default_model="github-copilot/kimi-k3"
+    default_thinking="high"
+    ;;
+  easy)
+    default_model="github-copilot/gpt-5.6-luna"
+    default_thinking="max"
+    ;;
+  *)
+    echo "unknown delegate role: $delegate_role" >&2
+    return 2
+    ;;
+esac
+
+model="${requested_model:-$default_model}"
+thinking="${requested_thinking:-$default_thinking}"
+: "${model:?model must be set}"
+: "${thinking:?thinking must be set}"
+```
+
+Even when using defaults, pass both final values explicitly.
 
 ## Create the Herdr tab and agent
 
@@ -61,8 +93,15 @@ herdr tab create \
   --label "[PI-SUB] <description>" \
   --no-focus
 
-herdr agent start <unique-name> --kind pi --pane <root-pane-id> --model "$model" --thinking "$thinking"
-herdr agent prompt <unique-name> '<focused delegate prompt>'
+# Replace both placeholders after parsing the tab-create JSON response.
+agent_name="<unique-name>"
+root_pane_id="<root-pane-id-from-tab-create-json>"
+: "${agent_name:?agent_name must be set}"
+: "${root_pane_id:?root_pane_id must be set}"
+
+# The separator is mandatory: --model and --thinking are Pi arguments, not Herdr options.
+herdr agent start "$agent_name" --kind pi --pane "$root_pane_id" -- --model "$model" --thinking "$thinking"
+herdr agent prompt "$agent_name" '<focused delegate prompt>'
 ```
 
 Do not use `--wait` when the parent has other useful work; blocking defeats delegation. The child must not close its own pane or tab.
