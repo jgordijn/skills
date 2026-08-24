@@ -7,9 +7,9 @@ description: Use when delegating work to another Pi session, with or without a s
 
 ## Overview
 
-Delegate to an interactive Pi agent in a dedicated Herdr tab. The parent owns the tab lifetime: retain it while reuse may help, and close it only after the result is captured and the child is no longer needed.
+All delegates are interactive Pi agents in a newly created Herdr tab. The parent owns the tab lifetime: retain it while reuse may help, and close it only after the result is captured and the child is no longer needed.
 
-Do not use RPC, one-shot Pi, or other terminal hosts for this workflow.
+Never use `pi -p`, RPC, tmux, or Supaterm for delegation. Herdr's interactive Pi agent surface is the only supported launch path.
 
 ## Preconditions
 
@@ -36,6 +36,20 @@ git worktree add .worktrees/<name> -b <branch> <base-commit>
 
 Give each child exact ownership. Never let parent and child concurrently edit overlapping files.
 
+## Choose the model route
+
+Unless the user specifies a route, select it by role:
+
+| Delegate role | Model | Thinking |
+|---|---|---|
+| Standard programming or implementation | `github-copilot/gpt-5.6-sol` | thinking `medium` |
+| Critical code review or adversarial verification | `github-copilot/kimi-k3` | thinking `high` |
+| Easy, mechanical, tightly bounded work | `github-copilot/gpt-5.6-luna` | thinking `max` |
+
+An explicit user-specified provider, model, or thinking always overrides the role default. Preserve every explicitly specified route component and never silently replace it. If the requested route is unavailable, report the problem and ask before substituting.
+
+Set `model` and `thinking` from that decision before launching. Even when using defaults, pass both explicitly.
+
 ## Create the Herdr tab and agent
 
 Keep user focus unchanged. Parse both the new tab ID and root pane ID from the JSON response; never infer either ID.
@@ -47,7 +61,7 @@ herdr tab create \
   --label "[PI-SUB] <description>" \
   --no-focus
 
-herdr agent start <unique-name> --kind pi --pane <root-pane-id>
+herdr agent start <unique-name> --kind pi --pane <root-pane-id> --model "$model" --thinking "$thinking"
 herdr agent prompt <unique-name> '<focused delegate prompt>'
 ```
 
@@ -63,6 +77,7 @@ Include:
 - required verification and commit/push requirements
 - a concise final handoff with result, changed files, tests, commit, and blockers
 - an instruction to remain available after the handoff; the parent decides whether to reuse or close the tab
+- the exact instruction: "do not run any Herdr or Supaterm close command"
 
 ## Monitor, reuse, and collect
 
